@@ -7,12 +7,18 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-const router = express.Router();
-
 app.use(express.json());
 
 const userRoutes = require('./routes/userRoute');
-router.use(userRoutes);
+app.use('/users', userRoutes);
+
+// 处理请求未匹配路由的情况
+app.use((req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: `Not Found ${req.originalUrl}`
+  });
+});
 
 app.use((err, req, res, _next) => {
   console.error(err.stack);
@@ -21,7 +27,5 @@ app.use((err, req, res, _next) => {
     message: 'Internal Server Error'
   });
 });
-
-app.use('/users', router);
 
 module.exports = app;

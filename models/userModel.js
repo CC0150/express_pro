@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema(
         message: '两次输入的密码不一致'
       }
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user'
+    },
     createdAt: {
       type: Date,
       default: Date.now(),

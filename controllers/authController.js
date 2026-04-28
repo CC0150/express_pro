@@ -3,6 +3,7 @@ const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const jwt = require('jsonwebtoken');
 
+// 生成 JWT 令牌
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     // 令牌过期时间(90天)
@@ -26,7 +27,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     confirmPassword: req.body.confirmPassword,
-    passwordChangedAt: Date.now()
+    passwordChangedAt: Date.now(),
+    role: req.body.role
   });
 
   // 生成 JWT 令牌
@@ -67,6 +69,7 @@ exports.login = catchAsync(async (req, res, next) => {
   });
 });
 
+// 中间件：保护 JWT 路由，检查用户是否已登录
 exports.protect = catchAsync(async (req, res, next) => {
   // 1) 从请求头中获取 token
   let token;
@@ -97,3 +100,13 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   next();
 });
+
+// 中间件：保护 JWT 路由，根据用户角色限制访问
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError(`您没有权限访问该资源`, 403));
+    }
+    next();
+  };
+};

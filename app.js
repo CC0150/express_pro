@@ -2,7 +2,7 @@ const express = require('express');
 const morgan = require('morgan');
 const AppError = require('./utils/appError');
 const errorController = require('./controllers/errorController');
-const { protect } = require('./controllers/authController');
+const { protect, restrictTo } = require('./controllers/authController');
 
 const app = express();
 
@@ -15,7 +15,8 @@ app.use(express.json());
 const userRoutes = require('./routes/userRoute');
 app.use('/users', userRoutes);
 
-app.get('/test', protect, (req, res) => {
+// 测试路由
+app.get('/test', protect, restrictTo('admin'), (req, res) => {
   res.status(200).json({
     status: 'success',
     message: '测试成功'

@@ -1,104 +1,89 @@
+const mongoose = require('mongoose');
 const User = require('../models/userModel');
+const AppError = require('../utils/appError');
+const catchAsync = require('../utils/catchAsync');
 
 const APIFeatures = require('../utils/apiFeatures');
 
 // 获取用户列表
-exports.getUserList = async (req, res) => {
-  try {
-    const apiFeatures = new APIFeatures(User.find(), req.query);
-    const query = apiFeatures.filter().sort().select().pagination();
+exports.getUserList = catchAsync(async (req, res, next) => {
+  const apiFeatures = new APIFeatures(User.find(), req.query);
+  const query = apiFeatures.filter().sort().select().pagination();
 
-    const users = await query.query;
+  const users = await query.query;
 
-    return res.status(200).json({
-      status: 'success',
-      message: '获取用户列表成功',
-      length: users.length,
-      data: {
-        users
-      }
-    });
-  } catch (err) {
-    res.status(400).json({
-      status: 'error',
-      message: '获取用户列表失败',
-      error: err.message
-    });
-  }
-};
+  return res.status(200).json({
+    status: 'success',
+    message: '获取用户列表成功',
+    length: users.length,
+    data: {
+      users
+    }
+  });
+});
 
 // 获取用户详情
-exports.getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    return res.status(200).json({
-      status: 'success',
-      data: {
-        user
-      }
-    });
-  } catch {
-    res.status(400).json({
-      status: 'error',
-      message: '获取用户详情失败'
-    });
+exports.getUserById = catchAsync(async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return next(new AppError('无效的用户ID', 400));
   }
-};
+  const user = await User.findById(req.params.id);
+  console.log(user);
+  if (!user) {
+    return next(new AppError('用户不存在', 404));
+  }
+  return res.status(200).json({
+    status: 'success',
+    data: {
+      user
+    }
+  });
+});
 
 // 更新用户信息
-exports.updateUserById = async (req, res) => {
-  try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
-    return res.status(200).json({
-      status: 'success',
-      message: '更新用户成功',
-      data: {
-        user
-      }
-    });
-  } catch {
-    res.status(400).json({
-      status: 'error',
-      message: '更新用户失败'
-    });
+exports.updateUserById = catchAsync(async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return next(new AppError('无效的用户ID', 400));
   }
-};
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
+  if (!user) {
+    return next(new AppError('用户不存在', 404));
+  }
+  return res.status(200).json({
+    status: 'success',
+    message: '更新用户成功',
+    data: {
+      user
+    }
+  });
+});
 
 // 创建用户
-exports.createUser = async (req, res) => {
-  try {
-    const newUser = await User.create(req.body);
-    res.status(201).json({
-      status: 'success',
-      message: '创建用户成功',
-      data: {
-        newUser
-      }
-    });
-  } catch (err) {
-    res.status(400).json({
-      status: 'error',
-      message: `创建用户失败, 请检查输入数据`,
-      error: err.message
-    });
-  }
-};
+exports.createUser = catchAsync(async (req, res, next) => {
+  const newUser = await User.create(req.body);
+  res.status(201).json({
+    status: 'success',
+    message: '创建用户成功',
+    data: {
+      newUser
+    }
+  });
+});
 
 // 删除用户
-exports.deleteUser = async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-    return res.status(204).json({
-      status: 'success',
-      message: '删除用户成功'
-    });
-  } catch {
-    res.status(400).json({
-      status: 'error',
-      message: '删除用户失败'
-    });
+exports.deleteUser = catchAsync(async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return next(new AppError('无效的用户ID', 400));
   }
-};
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) {
+    return next(new AppError('用户不存在', 404));
+  }
+  res.status(204).json({
+    status: 'success',
+    message: '删除用户成功'
+  });
+});

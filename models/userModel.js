@@ -1,44 +1,52 @@
 const mongoose = require('mongoose');
+const validator = require('validator');
+const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: [true, '名字不能为空'],
-      minlength: [3, '名字不能少于3个字符'],
-      maxlength: [20, '名字不能多于20个字符'],
-      trim: true,
-      unique: true
+      trim: true
     },
-    age: {
-      type: Number,
-      required: [true, '年龄不能为空'],
-      min: [0, '年龄不能小于0岁'],
-      max: [80, '年龄不能大于80岁']
-    },
-    sex: {
+    email: {
       type: String,
-      required: [true, '性别不能为空'],
-      enum: {
-        values: ['男', '女'],
-        message: '{VALUE} 不是一个有效的性别'
+      required: [true, '邮箱不能为空'],
+      trim: true,
+      lowercase: true,
+      unique: true,
+      validate: {
+        validator: (val) => validator.isEmail(val),
+        message: '{VALUE} 不是一个有效的邮箱'
       }
     },
-    phone: {
+    password: {
       type: String,
+      required: [true, '密码不能为空'],
+      trim: true,
+      select: false, // 不返回密码 字段
+      minlength: [6, '密码长度不能小于6个字符'],
+      maxlength: [32, '密码长度不能大于32个字符']
+    },
+    confirmPassword: {
+      type: String,
+      required: [true, '确认密码不能为空'],
+      trim: true,
       validate: {
-        validator: (val) => {
-          const phoneRegex = /^1[3456789]\d{9}$/;
-          return phoneRegex.test(val);
+        validator: function (val) {
+          return val === this.password;
         },
-        message: '{VALUE}->手机号格式错误'
-      },
-      trim: true
+        message: '两次输入的密码不一致'
+      }
     },
     createdAt: {
       type: Date,
       default: Date.now(),
       select: false // 不返回 createdAt 字段
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: Date.now()
     }
   },
   {
@@ -53,16 +61,32 @@ const userSchema = new mongoose.Schema(
 
 // 虚拟字段(不存储在数据库中，仅用于返回)
 userSchema.virtual('fullName').get(function () {
-  return `${this.name}-${this.sex}`;
+  return `${this.name}-${this.email}`;
 });
 
-userSchema.pre('save', function () {
-  console.log('pre save');
+// 加密密码
+userSchema.pre('save', async function () {
+  // 只有当密码被修改时才加密密码
+  if (!this.isModified('password')) {
+    return;
+  }
+  // 加密密码
+  this.password = await bcrypt.hash(this.password, 12);
+  // 清除确认密码字段，避免存储在数据库中
+  this.confirmPassword = undefined;
 });
 
-userSchema.pre('find', function () {
-  this.find({ age: { $gt: 8 } });
-});
+// 检查密码是否正确
+userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+// 检查用户是否在登录后修改了密码
+userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
+  // 转换为秒级时间戳
+  const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+  return this.passwordChangedAt && JWTTimeStamp < changedTimestamp;
+};
 
 const User = mongoose.model('User', userSchema);
 

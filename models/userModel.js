@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema(
   {
@@ -49,10 +50,9 @@ const userSchema = new mongoose.Schema(
       default: Date.now(),
       select: false // 不返回 createdAt 字段
     },
-    passwordChangedAt: {
-      type: Date,
-      default: Date.now()
-    }
+    passwordChangedAt: Date,
+    passwordResetToken: String,
+    passwordResetExpiresire: Date
   },
   {
     toObject: {
@@ -91,6 +91,18 @@ userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
   // 转换为秒级时间戳
   const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
   return this.passwordChangedAt && JWTTimeStamp < changedTimestamp;
+};
+
+// 重置密码令牌
+userSchema.methods.createResetPasswordToken = function () {
+  // 生成随机的重置密码令牌
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  // 加密重置密码令牌
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  // 设置重置密码令牌过期时间为10分钟
+  this.passwordResetExpiresire = Date.now() + 10 * 60 * 1000;
+  // 返回重置密码令牌
+  return resetToken;
 };
 
 const User = mongoose.model('User', userSchema);

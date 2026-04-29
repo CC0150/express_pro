@@ -11,6 +11,17 @@ const signToken = (id) => {
   });
 };
 
+//过滤更新字段
+const filterObj = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach((el) => {
+    if (allowedFields.includes(el)) {
+      newObj[el] = obj[el];
+    }
+  });
+  return newObj;
+};
+
 // 注册用户
 exports.signup = catchAsync(async (req, res, next) => {
   // 验证用户输入
@@ -110,3 +121,42 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+
+// 忘记密码(未完成)
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new AppError('请填写邮箱', 400));
+  }
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError('邮箱不存在', 404));
+  }
+  // 生成重置密码令牌
+  const resetToken = user.createResetPasswordToken();
+  await user.save({ validateBeforeSave: false });
+});
+
+// 重置密码(未完成)
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const { password, confirmPassword, resetToken } = req.body;
+});
+
+//更新用户信息(未完成)
+exports.updateUser = catchAsync(async (req, res, next) => {
+  // 1) 过滤更新字段
+  const filteredBody = filterObj(req.body, 'name', 'email');
+  // 2) 更新用户信息
+  const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
+    new: true,
+    runValidators: true
+  });
+  // 3) 返回更新后的用户信息
+  res.status(200).json({
+    status: 'success',
+    message: '更新用户信息成功',
+    data: {
+      user: updatedUser
+    }
+  });
+});
